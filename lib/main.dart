@@ -109,10 +109,12 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () async {
+                  // Cierre de sesión limpiando estados residuales (Fase 4)
                   await FirebaseAuth.instance.signOut();
                 },
-                icon: const Icon(Icons.logout),
-                label: const Text('Cerrar Sesión'),
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Cerrar Sesión (Sign Out)'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
               ),
             ],
           ),

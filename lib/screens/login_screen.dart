@@ -400,12 +400,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const Spacer(),
-                      const Text(
-                        'Olvide mi contraseña',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          decoration: TextDecoration.underline,
-                          fontSize: 14,
+                      TextButton(
+                        onPressed: () {
+                          _showForgotPasswordDialog(context);
+                        },
+                        child: const Text(
+                          'Olvide mi contraseña',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Colors.black,
+                            decoration: TextDecoration.underline,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -462,6 +468,89 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Diálogo para solicitar el correo y enviar el enlace de recuperación (Fase 4)
+  void _showForgotPasswordDialog(BuildContext context) {
+    final resetCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Recuperar contraseña'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resetCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'Correo electrónico',
+                  prefixIcon: const Icon(Icons.email),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+              onPressed: () async {
+                final email = resetCtrl.text.trim();
+                if (email.isEmpty || !isValidEmail(email)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Ingresa un correo válido'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  // Método de Firebase Auth para enviar correo de restablecimiento (Fase 4)
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  Navigator.of(context).pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('¡Correo de recuperación enviado con éxito! Revisa tu bandeja.'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  String msg = 'No se pudo enviar el correo';
+                  if (e.code == 'user-not-found') {
+                    msg = 'No existe una cuenta registrada con este correo';
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(msg),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Enviar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
