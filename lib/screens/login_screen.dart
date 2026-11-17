@@ -82,17 +82,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _fireTriggerSafely(SMITrigger? trigger) async {
     _isChecking?.change(false);
     _isHandsUp?.change(false);
-    // Primer disparo rápido (por si ya tenía las manos abajo)
-    await Future.delayed(const Duration(milliseconds: 250));
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
     trigger?.fire();
-    // Segundo disparo cuando termina la animación de bajar las manos (hands_down dura ~800ms)
-    await Future.delayed(const Duration(milliseconds: 700));
+
+    // Si seguía bajando las manos (hands_down dura ~800ms), reintentar solo si aún no entró al estado resultado
+    await Future.delayed(const Duration(milliseconds: 850));
+    if (!mounted || _animationStarted) return;
     trigger?.fire();
   }
 
   //4.4 Dar accion al boton con Firebase Auth (Fase 2)
   Future<void> _onLogin() async {
     if (_isBusy) return;
+    _animationStarted = false;
     setState(() {
       _isBusy = true;
       emailError = null;
@@ -109,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ? null
         : "Mín. 8 caracteres, 1 mayúscula, 1 número y 1 símbolo";
 
-    // Quitar foco y forzar manos abajo inmediatamente
+    // 1. Quitar foco y FORZAR que baje las manos DE INMEDIATO al presionar Login
     FocusManager.instance.primaryFocus?.unfocus();
     _typingDebounce?.cancel();
     _isChecking?.change(false);
@@ -131,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: pass,
       );
 
-      // Éxito: dispara celebración garantizada
+      // Dispara celebración (de inmediato si ya está en idle, o al terminar hands_down)
       await _fireTriggerSafely(_trigSuccess);
 
       if (mounted) {
@@ -152,11 +155,13 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (e.code == 'too-many-requests') {
         msg = 'Demasiados intentos. Intenta más tarde';
       }
+      if (!mounted) return;
       setState(() {
         passError = msg;
       });
       await _fireTriggerSafely(_trigFail);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         passError = 'Ocurrió un error inesperado';
       });
@@ -193,7 +198,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    super.initState();
     _emailFocus.addListener(() {
       if (_emailFocus.hasFocus) {
         //Verificar que no sea nulo
@@ -207,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     _passWordFocus.addListener(() {
       //Manos arriba en el password
-      _isHandsUp!.change(_passWordFocus.hasFocus);
+      _isHandsUp?.change(_passWordFocus.hasFocus);
     });
   }
 
@@ -477,7 +481,7 @@ class _LoginScreenState extends State<LoginScreen> {
     
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Recuperar contraseña'),
           content: Column(
@@ -503,7 +507,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
@@ -511,7 +515,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () async {
                 final email = resetCtrl.text.trim();
                 if (email.isEmpty || !isValidEmail(email)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
                       content: Text('Ingresa un correo válido'),
                       backgroundColor: Colors.red,
@@ -523,9 +527,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 try {
                   // Método de Firebase Auth para enviar correo de restablecimiento (Fase 4)
                   await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-                  Navigator.of(context).pop();
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(this.context).showSnackBar(
                       const SnackBar(
                         content: Text('¡Correo de recuperación enviado con éxito! Revisa tu bandeja.'),
                         backgroundColor: Colors.green,
@@ -538,12 +544,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (e.code == 'user-not-found') {
                     msg = 'No existe una cuenta registrada con este correo';
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(msg),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text(msg),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Enviar', style: TextStyle(color: Colors.white)),

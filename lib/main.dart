@@ -52,22 +52,25 @@ class MyApp extends StatelessWidget {
           ),
           // Indicador discreto de Fase 1
           Positioned(
-            top: 40,
-            right: 20,
-            child: Material(
-              color: Colors.transparent,
-              child: Chip(
-                avatar: Icon(
-                  isConnected ? Icons.cloud_done : Icons.cloud_off,
-                  color: Colors.white,
-                  size: 16,
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: Chip(
+                  avatar: Icon(
+                    isConnected ? Icons.cloud_done : Icons.cloud_off,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  label: Text(
+                    isConnected ? 'Firebase Ready' : 'Offline',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                  backgroundColor: isConnected ? Colors.green : Colors.red,
+                  visualDensity: VisualDensity.compact,
                 ),
-                label: Text(
-                  isConnected ? 'Firebase Ready' : 'Offline',
-                  style: const TextStyle(color: Colors.white, fontSize: 11),
-                ),
-                backgroundColor: isConnected ? Colors.green : Colors.red,
-                visualDensity: VisualDensity.compact,
               ),
             ),
           ),
