@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'package:login_bear_animation/screens/login_screen.dart';
 
@@ -28,14 +29,28 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Login Bear Auth',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: Stack(
         children: [
-          const LoginScreen(),
-          // Indicador visual discreto que pide el Criterio de Éxito de la Fase 1
+          // Fase 2: Escucha reactiva con delay en login para lucir la animación de Rive
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges().asyncMap((user) async {
+              if (user != null) {
+                await Future.delayed(const Duration(milliseconds: 2600));
+              }
+              return user;
+            }),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return const HomeScreen();
+              }
+              return const LoginScreen();
+            },
+          ),
+          // Indicador discreto de Fase 1
           Positioned(
             top: 40,
             right: 20,
@@ -57,6 +72,51 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home - Rive Auth'),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.verified_user, size: 80, color: Colors.green),
+              const SizedBox(height: 16),
+              const Text(
+                '¡Sesión Activa!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Conectado como: ${user?.email ?? ""}',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text('Cerrar Sesión'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

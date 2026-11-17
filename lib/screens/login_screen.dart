@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'dart:async'; //3.1 Importar el timer
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
-  const new({super.key});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -51,10 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
   //4.17 Timer de seguridad: libera el bloqueo si Rive nunca reporta el fin
   Timer? _busySafetyTimer;
 
-  //Estados de la "Login Machine" que reproducen el resultado del login
-  static const Set<String> _resultStateNames = {'success9', 'fail9'};
-  //Tiempo maximo de bloqueo antes de liberar por seguridad
-  static const Duration _maxBusyLock = Duration(seconds: 5);
+  // Estados de la "Login Machine" que reproducen el resultado del login
+  static const Set<String> _resultStateNames = {'success', 'fail', 'success9', 'fail9'};
+  // Reducimos el tiempo máximo de bloqueo de 5s a 2s para que sea fluido
+  static const Duration _maxBusyLock = Duration(seconds: 2);
 
   //4.3 Validadores
   bool isValidEmail(String email) {
@@ -71,43 +72,89 @@ class _LoginScreenState extends State<LoginScreen> {
     return re.hasMatch(pass);
   }
 
-  //4.4 Dar accion al boton
-  void _onLogin() {
-    //4.4.1 Anti-spam: si ya hay una animacion corriendo, ignorar el toque
+  // Función auxiliar que garantiza que Rive reciba el trigger ya sea que esté en idle o bajando las manos
+  Future<void> _fireTriggerSafely(SMITrigger? trigger) async {
+    _isChecking?.change(false);
+    _isHandsUp?.change(false);
+    // Primer disparo rápido (por si ya tenía las manos abajo)
+    await Future.delayed(const Duration(milliseconds: 250));
+    trigger?.fire();
+    // Segundo disparo cuando termina la animación de bajar las manos (hands_down dura ~800ms)
+    await Future.delayed(const Duration(milliseconds: 700));
+    trigger?.fire();
+  }
+
+  //4.4 Dar accion al boton con Firebase Auth (Fase 2)
+  Future<void> _onLogin() async {
     if (_isBusy) return;
-    //4.4.2 Bloquear el boton de inmediato
     setState(() {
       _isBusy = true;
+      emailError = null;
+      passError = null;
     });
-    //4.4.3 Red de seguridad: nunca dejar el boton bloqueado para siempre
     _busySafetyTimer?.cancel();
     _busySafetyTimer = Timer(_maxBusyLock, _releaseBusy);
-    //4.5 De lo que escribio el usuario, quitar espacios en blanco
+
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
 
-    //4.6 Evaluar los errores
-    final eError = isValidEmail(email) ? null : "invalid email";
-    final pError = isValidPassword(pass) ? null : "invalid password";
+    final eError = isValidEmail(email) ? null : "Formato de correo inválido";
+    final pError = isValidPassword(pass)
+        ? null
+        : "Mín. 8 caracteres, 1 mayúscula, 1 número y 1 símbolo";
 
-    //4.7 Avisar que hubo cambios
-    setState(() {
-      emailError = eError;
-      passError = pError;
-    });
-
-    //4.8 Cerrar el teclado y bajar las manos
-    FocusScope.of(context).unfocus(); //Quita el foco
-    _typingDebounce?.cancel(); //Cancelar el timer
+    // Quitar foco y forzar manos abajo inmediatamente
+    FocusManager.instance.primaryFocus?.unfocus();
+    _typingDebounce?.cancel();
     _isChecking?.change(false);
     _isHandsUp?.change(false);
-    _numLook?.value = 50.0; //Mirada neutra
+    _numLook?.value = 50.0;
 
-    //4.9 Activar triggers
-    if (eError == null && pError == null) {
-      _trigSuccess?.fire();
-    } else {
-      _trigFail?.fire();
+    if (eError != null || pError != null) {
+      setState(() {
+        emailError = eError;
+        passError = pError;
+      });
+      await _fireTriggerSafely(_trigFail);
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      // Éxito: dispara celebración garantizada
+      await _fireTriggerSafely(_trigSuccess);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Autenticación exitosa!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Error al iniciar sesión';
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+        msg = 'Correo o contraseña incorrectos';
+      } else if (e.code == 'wrong-password') {
+        msg = 'Contraseña incorrecta';
+      } else if (e.code == 'too-many-requests') {
+        msg = 'Demasiados intentos. Intenta más tarde';
+      }
+      setState(() {
+        passError = msg;
+      });
+      await _fireTriggerSafely(_trigFail);
+    } catch (e) {
+      setState(() {
+        passError = 'Ocurrió un error inesperado';
+      });
+      await _fireTriggerSafely(_trigFail);
     }
   }
 
