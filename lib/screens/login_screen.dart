@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:login_bear_animation/screens/register_screen.dart';
 
 import 'dart:async';
 
@@ -53,7 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Timer? _busySafetyTimer;
 
   // Estados de la "Login Machine" que reproducen el resultado del login
-  static const Set<String> _resultStateNames = {'success', 'fail', 'success9', 'fail9'};
+  static const Set<String> _resultStateNames = {
+    'success',
+    'fail',
+    'success9',
+    'fail9',
+  };
   // Reducimos el tiempo máximo de bloqueo de 5s a 2s para que sea fluido
   static const Duration _maxBusyLock = Duration(seconds: 2);
 
@@ -431,14 +437,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Text("Don't have an account?"),
                       TextButton(
-                        onPressed: () {},
-                        child: Text(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegisterScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
                           'Sign up',
                           style: TextStyle(
                             color: Colors.black,
-                            //subrayado
                             decoration: TextDecoration.underline,
-                            //Negritas
                             fontWeight: FontWeight.bold,
                           ),
                         ),
