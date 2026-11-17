@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44362056579",
+    "project_id": "login-bear-auth-8bdd0",
+    "storage_bucket": "login-bear-auth-8bdd0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44362056579:android:8b8ca10d5abd76b8bdecb6",
+        "android_client_info": {
+          "package_name": "com.example.login_bear_animation"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmLXkare45M6zto4Q0AJf16vl3bFPd7lg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
